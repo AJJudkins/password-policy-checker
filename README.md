@@ -1,5 +1,7 @@
 # Password Policy Checker
 
+[![CI](https://github.com/AJJudkins/password-policy-checker/actions/workflows/ci.yml/badge.svg)](https://github.com/AJJudkins/password-policy-checker/actions/workflows/ci.yml)
+
 Weak passwords are a common cause of account compromise. This tool checks a list of passwords against a configurable policy (length, character classes, a small bundled common-password list) and gives a rough entropy estimate, so you can see how a policy treats different choices.
 
 > Portfolio project. Uses simulated/sample data only.
@@ -67,6 +69,18 @@ pytest
 - Entropy is a crude `length x log2(character pool)` upper bound. It overrates predictable patterns like `Summer2024!`; it is not a substitute for a real estimator such as zxcvbn.
 - The bundled common-password list has only 14 entries; real use needs a much larger list.
 - Does not follow any specific standard (e.g. NIST 800-63B) out of the box.
+
+## Hardening notes
+- Never run this on real account passwords. Input can come from a file or from stdin (`-`) so nothing has to be saved to disk; output only shows masked values, lengths and failed rule names.
+- `--min-length` is validated, unreadable or empty input exits with code 2, and `--fail-on-weak` returns 1 if any password fails (for CI checks of test fixtures).
+- The bundled common-password list is tiny and for demonstration; use a real breached-password list for anything serious. Use an editable install for the console script (`pip install -e .`) so it finds the bundled list.
+
+## Security and testing status
+
+- **Safety:** offline; passwords are never printed, logged or sent anywhere (output is masked); stdin input avoids writing them to disk. Intended for test data only.
+- **Tested:** policy rules, entropy estimate, masking, stdin input and exit codes using made-up test passwords.
+- **Not tested:** real password databases or breached-password lists, Unicode edge cases, and any use as an actual enforcement control (the entropy estimate is rough).
+- See [SECURITY.md](SECURITY.md).
 
 ## License
 

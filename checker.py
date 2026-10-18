@@ -7,6 +7,7 @@ import argparse
 import json
 import math
 import string
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -87,11 +88,24 @@ def audit(passwords, policy=None, common=None):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Check sample passwords against a policy.")
-    ap.add_argument("file", help="text file with one password per line")
+    ap.add_argument("file", help="text file with one TEST password per line, or - for stdin "
+                                 "(never use real account passwords)")
     ap.add_argument("--min-length", type=int, default=12)
     ap.add_argument("--json", action="store_true", help="JSON output")
+    ap.add_argument("--fail-on-weak", action="store_true", help="exit 1 if any password fails the policy")
     args = ap.parse_args(argv)
-    pws = [l.rstrip("\n") for l in Path(args.file).read_text().splitlines() if l.strip()]
+    if not 1 <= args.min_length <= 256:
+        print("error: --min-length must be between 1 and 256", file=sys.stderr)
+        return 2
+    try:
+        text = sys.stdin.read() if args.file == "-" else Path(args.file).read_text()
+    except (OSError, UnicodeDecodeError) as e:
+        print(f"error: cannot read {args.file}: {e}", file=sys.stderr)
+        return 2
+    pws = [l.rstrip("\n") for l in text.splitlines() if l.strip()]
+    if not pws:
+        print("error: no passwords found in input", file=sys.stderr)
+        return 2
     results = audit(pws, Policy(min_length=args.min_length))
     if args.json:
         print(json.dumps(results, indent=2))
@@ -102,7 +116,8 @@ def main(argv=None):
                   f"entropy={r['entropy_bits']:<6} {status} {', '.join(r['failures'])}")
         passed = sum(r["passed"] for r in results)
         print(f"\n{passed}/{len(results)} passed")
+    return 1 if (args.fail_on_weak and not all(r["passed"] for r in results)) else 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
